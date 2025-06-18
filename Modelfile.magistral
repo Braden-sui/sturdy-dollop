@@ -1,0 +1,1 @@
+FROM ./models/Magistral-Small-2506-Q4_0.gguf
