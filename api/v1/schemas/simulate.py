@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import uuid
 
@@ -14,7 +14,7 @@ class SimulateStartResponse(BaseModel):
 
 class SimulateMessageRequest(BaseModel):
     content: str
-    attachments: Optional[List[Any]] = []
+    attachments: Optional[List[Any]] = Field(default_factory=list)
 
 class SimulateMessageResponse(BaseModel):
     response: str
@@ -35,7 +35,7 @@ class MemoryMessage(BaseModel):
 class MemoryAddRequest(BaseModel):
     messages: List[MemoryMessage]  # Changed from content: str
     metadata: Optional[Dict[str, Any]] = None  # Added
-    infer: bool = True  # Added
+    infer: bool = Field(default=True)  # Added
     # importance: float  # Removed
 
 class MemoryAddResponse(BaseModel):

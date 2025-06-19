@@ -17,6 +17,11 @@ class SessionManager:
     def get_session(self, session_id: uuid.UUID) -> Dict[str, Any] | None:
         return self.sessions.get(session_id)
 
+    def update_session(self, session_id: uuid.UUID, updates: Dict[str, Any]):
+        """Update session data with the provided updates."""
+        if session := self.get_session(session_id):
+            session.update(updates)
+
     def update_history(self, session_id: uuid.UUID, user_message: str, ai_message: str):
         if session := self.get_session(session_id):
             session["history"].append({"user": user_message, "ai": ai_message})

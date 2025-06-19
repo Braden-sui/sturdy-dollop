@@ -9,9 +9,14 @@ from api.core.config import settings
 import os
 import pathlib
 from contextlib import asynccontextmanager
-import aiosqlite
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from api.logic.conversation_graph import compile_global_graph, app_graph as global_app_graph # Import app_graph to check it
+try:
+    import aiosqlite  # type: ignore
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    aiosqlite = None  # type: ignore
+    AsyncSqliteSaver = None
+from api.logic.conversation_graph import compile_global_graph
+from api.logic import conversation_graph
 
 
 @asynccontextmanager
@@ -24,18 +29,24 @@ async def lifespan(app: FastAPI):
     logger.info(f"SQLite DB path: {db_path.resolve()}")
 
     conn = None
+    checkpointer = None
     try:
-        conn = await aiosqlite.connect(db_path)
-        app.state.db_conn = conn
-        logger.info(f"Successfully connected to SQLite DB: {db_path}")
+        if aiosqlite is not None and AsyncSqliteSaver is not None:
+            conn = await aiosqlite.connect(db_path)
+            app.state.db_conn = conn
+            logger.info(f"Successfully connected to SQLite DB: {db_path}")
+            checkpointer = AsyncSqliteSaver(conn=conn)  # type: ignore[arg-type]
+            app.state.checkpointer = checkpointer
+            logger.info(f"AsyncSqliteSaver initialized: {checkpointer}")
+        else:
+            logger.warning("aiosqlite or AsyncSqliteSaver unavailable; proceeding without checkpointing.")
         
-        checkpointer = AsyncSqliteSaver(conn=conn)
-        app.state.checkpointer = checkpointer # Store if needed elsewhere
-        logger.info(f"AsyncSqliteSaver initialized: {checkpointer}")
-
-        compile_global_graph(checkpointer) # This will set the global_app_graph in conversation_graph.py
-        logger.info(f"Global graph compilation triggered from lifespan startup. Compiled graph: {global_app_graph}")
-        if global_app_graph is None:
+        compile_global_graph(checkpointer)  # type: ignore[arg-type]
+        logger.info(
+            f"Global graph compilation triggered from lifespan startup. Compiled graph: "
+            f"{conversation_graph.app_graph}"
+        )
+        if conversation_graph.app_graph is None:
             logger.error("CRITICAL: Global app_graph is None after compilation attempt in lifespan!")
             # Depending on strictness, you might want to raise an error here to stop startup
             # raise RuntimeError("Failed to compile app_graph during startup.")

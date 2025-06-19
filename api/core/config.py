@@ -10,7 +10,11 @@ class Settings(BaseSettings):
 
     # Environment variables
     VLLM_URL: str = os.getenv("VLLM_URL", "http://localhost:8000")
+    OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:12b-it-qat")
     MEM0_API_KEY: str = os.getenv("MEM0_API_KEY", "")
+    MEM0_ORG_ID: str = os.getenv("MEM0_ORG_ID", "")
+    MEM0_PROJECT_ID: str = os.getenv("MEM0_PROJECT_ID", "")
     BRAVE_API_KEY: str = os.getenv("BRAVE_API_KEY", "")
     NEWS_API_KEY: str = os.getenv("NEWS_API_KEY", "")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")

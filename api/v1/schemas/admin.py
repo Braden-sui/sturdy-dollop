@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 class ModelLoadRequest(BaseModel):
     model_name: str = Field(..., description="The HuggingFace model identifier.")
-    quantization: str = Field("none", description="Quantization method: 'awq', 'gptq', or 'none'.")
+    quantization: str = Field(default="none", description="Quantization method: 'awq', 'gptq', or 'none'.")
 
 class ModelLoadResponse(BaseModel):
     loaded: bool

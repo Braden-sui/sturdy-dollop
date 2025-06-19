@@ -22,6 +22,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY ./api /app/api
 
+# Copy test files and pytest config
+COPY ./test_* /app/
+COPY ./conftest.py /app/
+
 # Expose port and run application
 EXPOSE 8001
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8001"]

@@ -1,6 +1,7 @@
 import asyncio
-from langchain_core.messages import ToolMessage
-from langchain_openai import ChatOpenAI
+from typing import AsyncIterator, Dict, Any
+from langchain_core.messages import ToolMessage, AIMessageChunk, AIMessage
+from langchain_ollama import ChatOllama
 from langgraph.graph import END
 
 from api.logic.graph_state import AgentState
@@ -10,16 +11,63 @@ from api.core.config import settings
 
 async def should_continue(state: AgentState):
     """Determine whether to continue the graph or end."""
-    if state["messages"][-1].tool_calls:
-        return "action"
+    # Since Gemma3 doesn't support tools, always end the conversation
     return END
 
 
 async def call_model(state: AgentState):
     """The 'decide' node. Invokes the LLM to determine the next action."""
-    model = ChatOpenAI(api_key="dummy", base_url=f"{settings.VLLM_URL}/v1").bind_tools(tools)
-    response = await model.ainvoke(state["messages"])
-    return {"messages": [response]}
+    from api.logic.tools import WEB_SEARCH_SYSTEM_PROMPT
+    from langchain_core.messages import SystemMessage
+    
+    model = ChatOllama(
+        model=settings.OLLAMA_MODEL,
+        base_url=settings.OLLAMA_URL,
+        temperature=0.7
+    )
+    
+    # Bind tools to the model with better tool descriptions
+    model_with_tools = model.bind_tools(
+        tools,
+        tool_choice="auto"  # Let the model decide when to use tools
+    )
+    
+    # Add system message if this is the first message
+    if len(state["messages"]) == 0 or not any(isinstance(m, SystemMessage) for m in state["messages"]):
+        state["messages"].insert(0, SystemMessage(content=WEB_SEARCH_SYSTEM_PROMPT))
+    
+    # For non-streaming, keep the existing behavior
+    if not state.get("streaming", False):
+        response = await model_with_tools.ainvoke(state["messages"])
+        return {"messages": [response], "streaming": False}
+    
+    # For streaming, return a generator
+    async def stream_response() -> AsyncIterator[Dict[str, Any]]:
+        full_response = ""
+        async for chunk in model_with_tools.astream(state["messages"]):
+            if isinstance(chunk, AIMessageChunk):
+                content = chunk.content or ""
+                full_response += content
+                yield {
+                    "type": "chunk",
+                    "content": content,
+                    "done": False,
+                    "tool_calls": getattr(chunk, 'tool_calls', None)  # Include any tool calls
+                }
+        
+        # Send final message with full response
+        yield {
+            "type": "final",
+            "content": full_response,
+            "done": True,
+            "tool_calls": getattr(chunk, 'tool_calls', None) if 'chunk' in locals() else None
+        }
+    
+    return {
+        "messages": [],  # Will be populated by the stream
+        "streaming": True,
+        "stream_generator": stream_response()
+    }
 
 
 async def call_tool(state: AgentState):

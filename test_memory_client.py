@@ -6,7 +6,7 @@ sys.path.append('/app')
 
 from api.services.memory_client import memory_client
 
-async def test_memory_client():
+async def run_memory_client_test():
     print("Testing Memory Client Implementation")
     print("=" * 50)
     
@@ -73,5 +73,11 @@ async def test_memory_client():
     delete_all_result = await memory_client.delete_all_user_memories("test-user-123")
     print(f"Delete all memories result: {delete_all_result}")
 
+import pytest
+
+@pytest.mark.asyncio
+async def test_memory():
+    await run_memory_client_test()
+
 if __name__ == "__main__":
-    asyncio.run(test_memory_client())
+    asyncio.run(run_memory_client_test())
